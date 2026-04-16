@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+mcp_server.log
+
+# Test and example files
+test_*.py
+examples_*.py
+
+# Documentation (not needed in container)
+*.md
+!README.md
+LICENSE
+CONTRIBUTING.md
+
+# CI/CD
+.github/
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore

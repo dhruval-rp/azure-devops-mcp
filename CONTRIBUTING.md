@@ -32,6 +32,7 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+# Installs: azure-devops, fastmcp, python-dotenv, and dependencies
 
 # Copy and configure .env
 cp .env.example .env

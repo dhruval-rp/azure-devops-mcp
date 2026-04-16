@@ -7,10 +7,10 @@ This script tests individual tool functions to verify they work correctly.
 import asyncio
 import sys
 from azure_devops_mcp_server import (
-    handle_list_projects,
-    handle_get_project,
-    handle_list_teams,
-    handle_get_my_work_items,
+    list_projects,
+    get_project,
+    list_teams,
+    get_my_work_items,
     logger
 )
 
@@ -23,7 +23,7 @@ async def test_tools():
     # Test 1: List Projects
     print("\n1. Testing list_projects...")
     try:
-        result = await handle_list_projects({'top': 5})
+        result = await list_projects(top=5)
         print(result[:500] + "..." if len(result) > 500 else result)
         print("✓ list_projects works!")
     except Exception as e:
@@ -33,7 +33,7 @@ async def test_tools():
     print("\n2. Testing get_project...")
     try:
         # TODO: Replace 'YourProjectName' with an actual project from your organization
-        result = await handle_get_project({'project': 'YourProjectName'})
+        result = await get_project(project='Consumer Solutions')
         print(result[:500] + "..." if len(result) > 500 else result)
         print("✓ get_project works!")
     except Exception as e:
@@ -43,7 +43,7 @@ async def test_tools():
     print("\n3. Testing list_teams...")
     try:
         # TODO: Replace 'YourProjectName' with an actual project from your organization
-        result = await handle_list_teams({'project': 'YourProjectName'})
+        result = await list_teams(project='Consumer Solutions')
         print(result[:500] + "..." if len(result) > 500 else result)
         print("✓ list_teams works!")
     except Exception as e:
@@ -52,7 +52,7 @@ async def test_tools():
     # Test 4: Get My Work Items
     print("\n4. Testing get_my_work_items...")
     try:
-        result = await handle_get_my_work_items({'state': 'Active'})
+        result = await get_my_work_items(state='Active')
         print(result[:500] + "..." if len(result) > 500 else result)
         print("✓ get_my_work_items works!")
     except Exception as e:

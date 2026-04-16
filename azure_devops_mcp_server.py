@@ -12,12 +12,10 @@ Date: April 16, 2026
 import os
 import sys
 import logging
-from typing import Any, Optional
+from typing import Optional
 from dotenv import load_dotenv
 
-from mcp.server import Server
-from mcp.types import Tool, TextContent
-import mcp.server.stdio
+from fastmcp import FastMCP
 
 from azure.devops.connection import Connection
 from msrest.authentication import BasicAuthentication
@@ -87,270 +85,34 @@ except Exception as e:
     raise
 
 
-# Initialize MCP server
-app = Server("azure-devops-mcp")
-logger.info("MCP Server initialized")
+# Initialize FastMCP server
+mcp = FastMCP("Azure DevOps MCP Server")
+logger.info("FastMCP Server initialized")
 
 
-@app.list_tools()
-async def list_tools() -> list[Tool]:
-    """List all available Azure DevOps tools"""
-    return [
-        Tool(
-            name="get_my_work_items",
-            description="Get work items assigned to you. Returns active work items by default.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {
-                        "type": "string",
-                        "description": f"Project name (default: {AZURE_DEVOPS_PROJECT})"
-                    },
-                    "state": {
-                        "type": "string",
-                        "description": "Filter by state (e.g., 'Active', 'Closed', 'Resolved'). Leave empty for all states.",
-                        "default": "Active"
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Filter by work item type (e.g., 'Bug', 'Task', 'User Story')"
-                    }
-                }
-            }
-        ),
-        Tool(
-            name="get_work_item",
-            description="Get detailed information about a specific work item by ID",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "number",
-                        "description": "Work item ID"
-                    },
-                    "expand": {
-                        "type": "string",
-                        "description": "Expand options: 'all', 'relations', 'fields', 'links'",
-                        "default": "all"
-                    }
-                },
-                "required": ["id"]
-            }
-        ),
-        Tool(
-            name="query_work_items",
-            description="Query work items using WIQL (Work Item Query Language)",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "wiql": {
-                        "type": "string",
-                        "description": "WIQL query string (e.g., 'SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.State] = \"Active\"')"
-                    },
-                    "project": {
-                        "type": "string",
-                        "description": f"Project name (default: {AZURE_DEVOPS_PROJECT})"
-                    }
-                },
-                "required": ["wiql"]
-            }
-        ),
-        Tool(
-            name="create_work_item",
-            description="Create a new work item",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {
-                        "type": "string",
-                        "description": f"Project name (default: {AZURE_DEVOPS_PROJECT})"
-                    },
-                    "work_item_type": {
-                        "type": "string",
-                        "description": "Type of work item (e.g., 'Bug', 'Task', 'User Story', 'Feature')"
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Title of the work item"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "Description/Details of the work item"
-                    },
-                    "assigned_to": {
-                        "type": "string",
-                        "description": "Email or name of the person to assign to"
-                    },
-                    "priority": {
-                        "type": "number",
-                        "description": "Priority (1-4, where 1 is highest)"
-                    },
-                    "tags": {
-                        "type": "string",
-                        "description": "Comma-separated tags"
-                    }
-                },
-                "required": ["work_item_type", "title"]
-            }
-        ),
-        Tool(
-            name="update_work_item",
-            description="Update an existing work item",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "number",
-                        "description": "Work item ID to update"
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "New title"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "New description"
-                    },
-                    "state": {
-                        "type": "string",
-                        "description": "New state (e.g., 'Active', 'Resolved', 'Closed')"
-                    },
-                    "assigned_to": {
-                        "type": "string",
-                        "description": "New assignee (email or name)"
-                    },
-                    "priority": {
-                        "type": "number",
-                        "description": "New priority (1-4)"
-                    },
-                    "tags": {
-                        "type": "string",
-                        "description": "New tags (comma-separated)"
-                    }
-                },
-                "required": ["id"]
-            }
-        ),
-        Tool(
-            name="add_work_item_comment",
-            description="Add a comment to a work item",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "number",
-                        "description": "Work item ID"
-                    },
-                    "comment": {
-                        "type": "string",
-                        "description": "Comment text to add"
-                    }
-                },
-                "required": ["id", "comment"]
-            }
-        ),
-        Tool(
-            name="get_work_item_comments",
-            description="Get all comments for a work item",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "number",
-                        "description": "Work item ID"
-                    }
-                },
-                "required": ["id"]
-            }
-        ),
-        Tool(
-            name="list_projects",
-            description="List all projects in the organization",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "top": {
-                        "type": "number",
-                        "description": "Maximum number of projects to return (default: 100)"
-                    }
-                }
-            }
-        ),
-        Tool(
-            name="get_project",
-            description="Get details of a specific project",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {
-                        "type": "string",
-                        "description": "Project name or ID"
-                    }
-                },
-                "required": ["project"]
-            }
-        ),
-        Tool(
-            name="list_teams",
-            description="List all teams in a project",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "project": {
-                        "type": "string",
-                        "description": f"Project name (default: {AZURE_DEVOPS_PROJECT})"
-                    }
-                }
-            }
-        )
-    ]
+# Tool Functions (FastMCP automatically registers these)
 
-
-@app.call_tool()
-async def call_tool(name: str, arguments: Any) -> list[TextContent]:
-    """Handle tool calls"""
-    try:
-        logger.info(f"Tool called: {name} with arguments: {arguments}")
-        
-        # Route to appropriate handler
-        if name == "get_my_work_items":
-            result = await handle_get_my_work_items(arguments)
-        elif name == "get_work_item":
-            result = await handle_get_work_item(arguments)
-        elif name == "query_work_items":
-            result = await handle_query_work_items(arguments)
-        elif name == "create_work_item":
-            result = await handle_create_work_item(arguments)
-        elif name == "update_work_item":
-            result = await handle_update_work_item(arguments)
-        elif name == "add_work_item_comment":
-            result = await handle_add_work_item_comment(arguments)
-        elif name == "get_work_item_comments":
-            result = await handle_get_work_item_comments(arguments)
-        elif name == "list_projects":
-            result = await handle_list_projects(arguments)
-        elif name == "get_project":
-            result = await handle_get_project(arguments)
-        elif name == "list_teams":
-            result = await handle_list_teams(arguments)
-        else:
-            result = f"Unknown tool: {name}"
-        
-        return [TextContent(type="text", text=str(result))]
+@mcp.tool()
+async def get_my_work_items(
+    project: str = AZURE_DEVOPS_PROJECT,
+    state: str = "Active",
+    type: str = ""
+) -> str:
+    """
+    Get work items assigned to you. Returns active work items by default.
     
-    except Exception as e:
-        logger.error(f"Error in {name}: {e}", exc_info=True)
-        return [TextContent(type="text", text=f"Error: {str(e)}")]
-
-
-# Tool handler functions
-async def handle_get_my_work_items(args: dict) -> str:
-    """Get work items assigned to current user"""
+    Args:
+        project: Project name (default from environment)
+        state: Filter by state (e.g., 'Active', 'Closed', 'Resolved'). Leave empty for all states.
+        type: Filter by work item type (e.g., 'Bug', 'Task', 'User Story')
+    
+    Returns:
+        Formatted string with work item details
+    """
     try:
+        logger.info(f"get_my_work_items called: project={project}, state={state}, type={type}")
         wit_client = ado_connection.get_wit_client()
-        project = args.get('project', AZURE_DEVOPS_PROJECT)
-        state = args.get('state', 'Active')
-        work_item_type = args.get('type', '')
+        work_item_type = type
         
         # Build WIQL query
         wiql_parts = [
@@ -405,12 +167,22 @@ async def handle_get_my_work_items(args: dict) -> str:
         return f"Error retrieving work items: {str(e)}"
 
 
-async def handle_get_work_item(args: dict) -> str:
-    """Get specific work item by ID"""
+@mcp.tool()
+async def get_work_item(id: int, expand: str = "all") -> str:
+    """
+    Get detailed information about a specific work item by ID.
+    
+    Args:
+        id: Work item ID
+        expand: Expand options: 'all', 'relations', 'fields', 'links' (default: 'all')
+    
+    Returns:
+        Formatted string with detailed work item information
+    """
     try:
+        logger.info(f"get_work_item called: id={id}, expand={expand}")
         wit_client = ado_connection.get_wit_client()
-        work_item_id = int(args['id'])
-        expand = args.get('expand', 'all')
+        work_item_id = int(id)
         
         # Map expand option to API constant
         from azure.devops.v7_1.work_item_tracking.models import WorkItemExpand
@@ -468,12 +240,22 @@ async def handle_get_work_item(args: dict) -> str:
         return f"Error retrieving work item: {str(e)}"
 
 
-async def handle_query_work_items(args: dict) -> str:
-    """Query work items using WIQL"""
+@mcp.tool()
+async def query_work_items(wiql: str, project: str = AZURE_DEVOPS_PROJECT) -> str:
+    """
+    Query work items using WIQL (Work Item Query Language).
+    
+    Args:
+        wiql: WIQL query string (e.g., 'SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.State] = "Active"')
+        project: Project name (default from environment)
+    
+    Returns:
+        Formatted string with query results
+    """
     try:
+        logger.info(f"query_work_items called: project={project}")
         wit_client = ado_connection.get_wit_client()
-        wiql_query = args['wiql']
-        project = args.get('project', AZURE_DEVOPS_PROJECT)
+        wiql_query = wiql
         
         # Execute WIQL query
         from azure.devops.v7_1.work_item_tracking.models import Wiql
@@ -507,13 +289,34 @@ async def handle_query_work_items(args: dict) -> str:
         return f"Error executing query: {str(e)}"
 
 
-async def handle_create_work_item(args: dict) -> str:
-    """Create a new work item"""
+@mcp.tool()
+async def create_work_item(
+    work_item_type: str,
+    title: str,
+    project: str = AZURE_DEVOPS_PROJECT,
+    description: str = "",
+    assigned_to: str = "",
+    priority: int = 0,
+    tags: str = ""
+) -> str:
+    """
+    Create a new work item.
+    
+    Args:
+        work_item_type: Type of work item (e.g., 'Bug', 'Task', 'User Story', 'Feature')
+        title: Title of the work item
+        project: Project name (default from environment)
+        description: Description/Details of the work item
+        assigned_to: Email or name of the person to assign to
+        priority: Priority (1-4, where 1 is highest)
+        tags: Comma-separated tags
+    
+    Returns:
+        Formatted string with created work item details
+    """
     try:
+        logger.info(f"create_work_item called: type={work_item_type}, title={title}, project={project}")
         wit_client = ado_connection.get_wit_client()
-        project = args.get('project', AZURE_DEVOPS_PROJECT)
-        work_item_type = args['work_item_type']
-        title = args['title']
         
         # Build document for work item creation
         from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation
@@ -527,35 +330,35 @@ async def handle_create_work_item(args: dict) -> str:
         ))
         
         # Add description if provided
-        if 'description' in args and args['description']:
+        if description:
             document.append(JsonPatchOperation(
                 op='add',
                 path='/fields/System.Description',
-                value=args['description']
+                value=description
             ))
         
         # Add assigned to if provided
-        if 'assigned_to' in args and args['assigned_to']:
+        if assigned_to:
             document.append(JsonPatchOperation(
                 op='add',
                 path='/fields/System.AssignedTo',
-                value=args['assigned_to']
+                value=assigned_to
             ))
         
         # Add priority if provided
-        if 'priority' in args and args['priority']:
+        if priority:
             document.append(JsonPatchOperation(
                 op='add',
                 path='/fields/Microsoft.VSTS.Common.Priority',
-                value=args['priority']
+                value=priority
             ))
         
         # Add tags if provided
-        if 'tags' in args and args['tags']:
+        if tags:
             document.append(JsonPatchOperation(
                 op='add',
                 path='/fields/System.Tags',
-                value=args['tags']
+                value=tags
             ))
         
         # Create work item
@@ -582,62 +385,86 @@ async def handle_create_work_item(args: dict) -> str:
         return f"Error creating work item: {str(e)}"
 
 
-async def handle_update_work_item(args: dict) -> str:
-    """Update an existing work item"""
+@mcp.tool()
+async def update_work_item(
+    id: int,
+    title: str = "",
+    description: str = "",
+    state: str = "",
+    assigned_to: str = "",
+    priority: int = 0,
+    tags: str = ""
+) -> str:
+    """
+    Update an existing work item.
+    
+    Args:
+        id: Work item ID to update
+        title: New title
+        description: New description
+        state: New state (e.g., 'Active', 'Resolved', 'Closed')
+        assigned_to: New assignee (email or name)
+        priority: New priority (1-4)
+        tags: New tags (comma-separated)
+    
+    Returns:
+        Formatted string with updated work item details
+    """
     try:
+        logger.info(f"update_work_item called: id={id}")
         wit_client = ado_connection.get_wit_client()
-        work_item_id = int(args['id'])
+        work_item_id = int(id)
         
         # Build document for work item update
         from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation
         document = []
         
         # Update title if provided
-        if 'title' in args and args['title']:
+        if title:
             document.append(JsonPatchOperation(
                 op='replace',
                 path='/fields/System.Title',
-                value=args['title']
+                value=title
             ))
         
         # Update description if provided
-        if 'description' in args and args['description']:
+        if description:
             document.append(JsonPatchOperation(
                 op='replace',
                 path='/fields/System.Description',
-                value=args['description']
+                value=description
             ))
         
         # Update state if provided
-        if 'state' in args and args['state']:
+        if state:
             document.append(JsonPatchOperation(
                 op='replace',
                 path='/fields/System.State',
-                value=args['state']
+                value=state
             ))
         
         # Update assigned to if provided
-        if 'assigned_to' in args and args['assigned_to']:
+        if assigned_to:
             document.append(JsonPatchOperation(
                 op='replace',
                 path='/fields/System.AssignedTo',
-                value=args['assigned_to']
+                value=assigned_to
             ))
         
         # Update priority if provided
-        if 'priority' in args and args['priority']:
+        if priority:
             document.append(JsonPatchOperation(
                 op='replace',
                 path='/fields/Microsoft.VSTS.Common.Priority',
-                value=args['priority']
+                value=priority
             ))
         
         # Update tags if provided
-        if 'tags' in args and args['tags']:
+        if tags:
             document.append(JsonPatchOperation(
                 op='replace',
                 path='/fields/System.Tags',
-                value=args['tags']
+                value=tags
             ))
         
         if not document:
@@ -665,12 +492,23 @@ async def handle_update_work_item(args: dict) -> str:
         return f"Error updating work item: {str(e)}"
 
 
-async def handle_add_work_item_comment(args: dict) -> str:
-    """Add comment to work item"""
+@mcp.tool()
+async def add_work_item_comment(id: int, comment: str) -> str:
+    """
+    Add a comment to a work item.
+    
+    Args:
+        id: Work item ID
+        comment: Comment text to add
+    
+    Returns:
+        Confirmation message with comment details
+    """
     try:
+        logger.info(f"add_work_item_comment called: id={id}")
         wit_client = ado_connection.get_wit_client()
-        work_item_id = int(args['id'])
-        comment_text = args['comment']
+        work_item_id = int(id)
+        comment_text = comment
         
         # Add comment using work item update
         from azure.devops.v7_1.work_item_tracking.models import CommentCreate
@@ -690,11 +528,21 @@ async def handle_add_work_item_comment(args: dict) -> str:
         return f"Error adding comment: {str(e)}"
 
 
-async def handle_get_work_item_comments(args: dict) -> str:
-    """Get work item comments"""
+@mcp.tool()
+async def get_work_item_comments(id: int) -> str:
+    """
+    Get all comments for a work item.
+    
+    Args:
+        id: Work item ID
+    
+    Returns:
+        Formatted string with all comments
+    """
     try:
+        logger.info(f"get_work_item_comments called: id={id}")
         wit_client = ado_connection.get_wit_client()
-        work_item_id = int(args['id'])
+        work_item_id = int(id)
         
         # Get comments
         comments = wit_client.get_comments(
@@ -723,11 +571,20 @@ async def handle_get_work_item_comments(args: dict) -> str:
         return f"Error retrieving comments: {str(e)}"
 
 
-async def handle_list_projects(args: dict) -> str:
-    """List all projects"""
+@mcp.tool()
+async def list_projects(top: int = 100) -> str:
+    """
+    List all projects in the organization.
+    
+    Args:
+        top: Maximum number of projects to return (default: 100)
+    
+    Returns:
+        Formatted string with project details
+    """
     try:
+        logger.info(f"list_projects called: top={top}")
         core_client = ado_connection.get_core_client()
-        top = args.get('top', 100)
         
         # Get projects
         projects = core_client.get_projects(top=top)
@@ -753,11 +610,21 @@ async def handle_list_projects(args: dict) -> str:
         return f"Error listing projects: {str(e)}"
 
 
-async def handle_get_project(args: dict) -> str:
-    """Get project details"""
+@mcp.tool()
+async def get_project(project: str) -> str:
+    """
+    Get details of a specific project.
+    
+    Args:
+        project: Project name or ID
+    
+    Returns:
+        Formatted string with project details
+    """
     try:
+        logger.info(f"get_project called: project={project}")
         core_client = ado_connection.get_core_client()
-        project_name = args['project']
+        project_name = project
         
         # Get project
         project = core_client.get_project(project_name)
@@ -793,11 +660,20 @@ async def handle_get_project(args: dict) -> str:
         return f"Error getting project: {str(e)}"
 
 
-async def handle_list_teams(args: dict) -> str:
-    """List teams in project"""
+@mcp.tool()
+async def list_teams(project: str = AZURE_DEVOPS_PROJECT) -> str:
+    """
+    List all teams in a project.
+    
+    Args:
+        project: Project name (default from environment)
+    
+    Returns:
+        Formatted string with team details
+    """
     try:
+        logger.info(f"list_teams called: project={project}")
         core_client = ado_connection.get_core_client()
-        project = args.get('project', AZURE_DEVOPS_PROJECT)
         
         # Get teams
         teams = core_client.get_teams(project)
@@ -821,19 +697,6 @@ async def handle_list_teams(args: dict) -> str:
         return f"Error listing teams: {str(e)}"
 
 
-async def main():
-    """Run the MCP server"""
-    logger.info("Starting Azure DevOps MCP Server...")
-    
-    # Run the server using stdin/stdout streams
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options()
-        )
-
-
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    logger.info("Starting Azure DevOps MCP Server...")
+    mcp.run()

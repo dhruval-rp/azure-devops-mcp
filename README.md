@@ -25,11 +25,47 @@ Use plain English in Copilot Chat:
 
 ## Quick Start
 
+### 🐳 Docker Installation (Recommended)
+
+**Easiest way to get started - no Python setup required!**
+
+```bash
+# Pull and run from Docker Hub
+docker run -i --rm \
+  -e AZURE_DEVOPS_PAT="your_pat_token" \
+  -e AZURE_DEVOPS_ORG_URL="https://dev.azure.com/YourOrg" \
+  YOUR_DOCKERHUB_USERNAME/azure-devops-mcp:latest
+```
+
+**VS Code Configuration (Docker):**
+```json
+{
+  "servers": {
+    "azure-devops": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "AZURE_DEVOPS_PAT=your_pat",
+        "-e", "AZURE_DEVOPS_ORG_URL=https://dev.azure.com/YourOrg",
+        "YOUR_DOCKERHUB_USERNAME/azure-devops-mcp:latest"
+      ]
+    }
+  }
+}
+```
+
+📖 **[Full Docker Documentation →](DOCKER.md)**
+
+---
+
+### 🐍 Python Installation (Manual)
+
 ### Prerequisites
 - Python 3.7 or higher
 - VS Code with GitHub Copilot installed
 - Azure DevOps Personal Access Token (PAT)
 - Access to your Azure DevOps organization
+- FastMCP package (installed via requirements.txt)
 
 ### Installation
 
@@ -108,7 +144,18 @@ Use plain English in Copilot Chat:
 | `get_work_item_comments` | Get all comments for a work item |
 | `list_projects` | List all projects |
 | `get_project` | Get project details |
-| `list_teams` | List teams in a project |
+| `Installation Methods Comparison
+
+| Feature | Docker 🐳 | Python 🐍 |
+|---------|----------|----------|
+| Setup Time | < 1 minute | 5-10 minutes |
+| Python Required | ❌ No | ✅ Yes |
+| Dependency Management | ✅ Automatic | Manual |
+| Cross-platform | ✅ Yes | ✅ Yes |
+| Updates | `docker pull` | `git pull` + `pip install` |
+| **Recommended for** | Most users | Developers |
+
+## list_teams` | List teams in a project |
 
 ## Usage Examples
 
@@ -174,10 +221,10 @@ python3 test_mcp_tools.py
 
 ## Troubleshooting
 
-### "ModuleNotFoundError: No module named 'mcp'"
-```bash
-pip install -r requirements.txt
-```
+### "ModuleNotFoundError: No module named 'fastmcp'"
+- Ensure you're using the Python interpreter from your virtual environment
+- Check that `fastmcp` is installed: `pip list | grep fastmcp`
+- Reinstall if needed: `pip install -r requirements.txt`
 
 ### "Connection failed" errors
 - Verify your PAT token is valid and not expired
