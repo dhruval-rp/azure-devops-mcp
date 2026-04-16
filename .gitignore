@@ -47,6 +47,3 @@ Thumbs.db
 
 # MCP specific
 mcp_server.log
-
-# Example/test files with credentials (not for production)
-examples_main.py
