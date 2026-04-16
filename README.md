@@ -33,8 +33,8 @@ Use plain English in Copilot Chat:
 # Pull and run from Docker Hub
 docker run -i --rm \
   -e AZURE_DEVOPS_PAT="your_pat_token" \
-  -e AZURE_DEVOPS_ORG_URL="https://dev.azure.com/YourOrg" \
-  YOUR_DOCKERHUB_USERNAME/azure-devops-mcp:latest
+  -e AZURE_DEVOPS_ORG_URL="https://tfs.realpage.com/tfs/Realpage" \
+  dhruvalp/azure-devops-mcp:latest
 ```
 
 **VS Code Configuration (Docker):**
@@ -46,8 +46,8 @@ docker run -i --rm \
       "args": [
         "run", "--rm", "-i",
         "-e", "AZURE_DEVOPS_PAT=your_pat",
-        "-e", "AZURE_DEVOPS_ORG_URL=https://dev.azure.com/YourOrg",
-        "YOUR_DOCKERHUB_USERNAME/azure-devops-mcp:latest"
+        "-e", "AZURE_DEVOPS_ORG_URL=https://tfs.realpage.com/tfs/Realpage",
+        "dhruvalp/azure-devops-mcp:latest"
       ]
     }
   }

@@ -184,15 +184,14 @@ async def get_work_item(id: int, expand: str = "all") -> str:
         wit_client = ado_connection.get_wit_client()
         work_item_id = int(id)
         
-        # Map expand option to API constant
-        from azure.devops.v7_1.work_item_tracking.models import WorkItemExpand
-        expand_option = WorkItemExpand.all
-        if expand.lower() == 'relations':
-            expand_option = WorkItemExpand.relations
-        elif expand.lower() == 'fields':
-            expand_option = WorkItemExpand.fields
-        elif expand.lower() == 'links':
-            expand_option = WorkItemExpand.links
+        # Map expand option to API string constant
+        expand_map = {
+            'all': 'All',
+            'relations': 'Relations',
+            'fields': 'Fields',
+            'links': 'Links',
+        }
+        expand_option = expand_map.get(expand.lower(), 'All')
         
         # Get work item
         work_item = wit_client.get_work_item(id=work_item_id, expand=expand_option)
