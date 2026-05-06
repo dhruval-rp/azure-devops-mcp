@@ -200,35 +200,89 @@ async def get_work_item(id: int, expand: str = "all") -> str:
             return f"Work item {work_item_id} not found."
         
         # Format output
+        import re
+        def strip_html(html_text):
+            """Strip HTML tags for cleaner output"""
+            if not html_text:
+                return ''
+            return re.sub('<[^<]+?>', '', html_text).strip()
+
         fields = work_item.fields
         output = [f"Work Item #{work_item.id}\n"]
         output.append(f"Title: {fields.get('System.Title', 'N/A')}")
         output.append(f"Type: {fields.get('System.WorkItemType', 'N/A')}")
         output.append(f"State: {fields.get('System.State', 'N/A')}")
+        output.append(f"Reason: {fields.get('System.Reason', 'N/A')}")
         output.append(f"Assigned To: {fields.get('System.AssignedTo', {}).get('displayName', 'Unassigned')}")
         output.append(f"Created By: {fields.get('System.CreatedBy', {}).get('displayName', 'N/A')}")
         output.append(f"Created Date: {fields.get('System.CreatedDate', 'N/A')}")
         output.append(f"Changed Date: {fields.get('System.ChangedDate', 'N/A')}")
+        output.append(f"Changed By: {fields.get('System.ChangedBy', {}).get('displayName', 'N/A')}")
         output.append(f"Priority: {fields.get('Microsoft.VSTS.Common.Priority', 'N/A')}")
         output.append(f"Severity: {fields.get('Microsoft.VSTS.Common.Severity', 'N/A')}")
+        output.append(f"Story Points: {fields.get('Microsoft.VSTS.Scheduling.StoryPoints', 'N/A')}")
+        output.append(f"Effort: {fields.get('Microsoft.VSTS.Scheduling.Effort', 'N/A')}")
         output.append(f"Area Path: {fields.get('System.AreaPath', 'N/A')}")
         output.append(f"Iteration Path: {fields.get('System.IterationPath', 'N/A')}")
         output.append(f"Tags: {fields.get('System.Tags', 'None')}")
         
-        # Description
+        # Description (full, not truncated)
         description = fields.get('System.Description', '')
         if description:
-            # Strip HTML tags for cleaner output
-            import re
-            description_text = re.sub('<[^<]+?>', '', description)
-            output.append(f"\nDescription:\n{description_text[:500]}{'...' if len(description_text) > 500 else ''}")
+            output.append(f"\nDescription:\n{strip_html(description)}")
         
-        # Relations
+        # Acceptance Criteria
+        acceptance_criteria = fields.get('Microsoft.VSTS.Common.AcceptanceCriteria', '')
+        if acceptance_criteria:
+            output.append(f"\nAcceptance Criteria:\n{strip_html(acceptance_criteria)}")
+        
+        # Repro Steps (for Bugs)
+        repro_steps = fields.get('Microsoft.VSTS.TCM.ReproSteps', '')
+        if repro_steps:
+            output.append(f"\nRepro Steps:\n{strip_html(repro_steps)}")
+        
+        # System Info (for Bugs)
+        system_info = fields.get('Microsoft.VSTS.TCM.SystemInfo', '')
+        if system_info:
+            output.append(f"\nSystem Info:\n{strip_html(system_info)}")
+        
+        # Resolution
+        resolved_reason = fields.get('Microsoft.VSTS.Common.ResolvedReason', '')
+        if resolved_reason:
+            output.append(f"\nResolved Reason: {resolved_reason}")
+        
+        # Relations (parent, child, related)
+        attachments = []
+        relations_list = []
         if work_item.relations:
-            output.append(f"\nRelations ({len(work_item.relations)}):")
-            for rel in work_item.relations[:10]:  # Show first 10
+            for rel in work_item.relations:
                 rel_type = rel.attributes.get('name', 'Unknown') if rel.attributes else 'Unknown'
-                output.append(f"  - {rel_type}: {rel.url}")
+                if rel.rel == 'AttachedFile':
+                    file_name = rel.attributes.get('name', 'Unknown') if rel.attributes else 'Unknown'
+                    attachments.append(f"  - {file_name}: {rel.url}")
+                else:
+                    relations_list.append(f"  - {rel_type}: {rel.url}")
+            
+            if relations_list:
+                output.append(f"\nRelations ({len(relations_list)}):")
+                output.extend(relations_list)
+            
+            if attachments:
+                output.append(f"\nAttachments ({len(attachments)}):")
+                output.extend(attachments)
+        
+        # Fetch comments
+        try:
+            comments = wit_client.get_comments(project=fields.get('System.TeamProject', ''), work_item_id=work_item_id, top=50)
+            if comments and comments.comments:
+                output.append(f"\nComments ({comments.total_count}):")
+                for c in comments.comments:
+                    author = c.created_by.display_name if c.created_by else 'Unknown'
+                    date = str(c.created_date) if c.created_date else 'N/A'
+                    text = strip_html(c.text) if c.text else ''
+                    output.append(f"\n  [{date}] {author}:\n  {text}")
+        except Exception as ce:
+            logger.warning(f"Could not fetch comments: {ce}")
         
         output.append(f"\nURL: {work_item.url}")
         
